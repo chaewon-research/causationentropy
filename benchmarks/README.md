@@ -68,8 +68,9 @@ All profiles use `method="standard"`, `information="knn"`,
 the shorter conditions use its prefixes, and every `k` is evaluated
 on the same observations at a given `T`.
 
-* `smoke`: one seed, `T=80`, `k=3`, five shuffles. Checks that the
-  pipeline and outputs work; not an accuracy estimate.
+* `smoke`: seed 1 (nonempty ground-truth graph), `T=80`, `k=3`,
+  five shuffles. Checks that the pipeline and outputs work; not an
+  accuracy estimate.
 * `pilot`: three seeds, `T=200,500`, `k=3,5,10`, 30 shuffles.
   Exploratory only.
 * `full`: 30 seeds, `T=200,500,1000,2000`, `k=3,5,10`,

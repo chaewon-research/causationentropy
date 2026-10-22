@@ -34,7 +34,7 @@ PROFILES = {
         "n": 3,
         "lengths": [80],
         "ks": [3],
-        "seeds": [0],
+        "seeds": [1],
         "shuffles": 5,
     },
     "pilot": {

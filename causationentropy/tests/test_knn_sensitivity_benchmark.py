@@ -55,7 +55,7 @@ def test_smoke_writes_scored_results(monkeypatch, tmp_path):
     calls = []
 
     def fake_generate_case(n, length, seed):
-        assert (n, length, seed) == (3, 80, 0)
+        assert (n, length, seed) == (3, 80, 1)
         return np.zeros((length, n)), {(0, 1, 1)}, ["X0", "X1", "X2"]
 
     def fake_discover_network(
@@ -158,3 +158,13 @@ def test_paired_sweep_reuses_seed_series_across_k_and_lengths(monkeypatch, tmp_p
     assert len(rows) == 8
     assert all(int(row["cross_FN"]) == 1 for row in rows)
     assert all(int(row["cross_TN"]) == 11 for row in rows)
+
+
+def test_smoke_profile_has_ground_truth_cross_link():
+    profile = sensitivity.PROFILES["smoke"]
+    data, truth, node_order = sensitivity.generate_case(
+        profile["n"], max(profile["lengths"]), profile["seeds"][0]
+    )
+    assert data.shape == (profile["lengths"][0], profile["n"])
+    assert node_order == ["X0", "X1", "X2"]
+    assert any(source != target for source, target, _ in truth)
