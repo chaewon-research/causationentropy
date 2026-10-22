@@ -95,3 +95,66 @@ def test_smoke_writes_scored_results(monkeypatch, tmp_path):
     summary = json.loads((output / "summary.json").read_text(encoding="utf-8"))
     assert summary["summary"][0]["cross_recall"] == pytest.approx(1.0)
     assert "95% CI" in (output / "SUMMARY.md").read_text(encoding="utf-8")
+
+def test_paired_sweep_reuses_seed_series_across_k_and_lengths(monkeypatch, tmp_path):
+    monkeypatch.setitem(
+        sensitivity.PROFILES,
+        "paired_test",
+        {
+            "n": 3,
+            "lengths": [40, 80],
+            "ks": [3, 5],
+            "seeds": [0, 1],
+            "shuffles": 5,
+        },
+    )
+    generated = []
+    observed = []
+
+    def fake_generate_case(n, length, seed):
+        generated.append((n, length, seed))
+        series = np.tile(np.arange(length)[:, None] + seed * 100, (1, n))
+        return series, {(0, 1, 1)}, ["X0", "X1", "X2"]
+
+    def fake_discover_network(data, metric, k_means, **kwargs):
+        observed.append(
+            (kwargs["random_state"], len(data), k_means, data.copy())
+        )
+        return nx.MultiDiGraph()
+
+    monkeypatch.setattr(sensitivity, "generate_case", fake_generate_case)
+    monkeypatch.setattr(sensitivity, "discover_network", fake_discover_network)
+
+    output = tmp_path / "paired_sweep"
+    assert (
+        sensitivity.main(
+            [
+                "--profile",
+                "paired_test",
+                "--output",
+                str(output),
+                "--n-bootstraps",
+                "0",
+            ]
+        )
+        == 0
+    )
+
+    assert generated == [(3, 80, 0), (3, 80, 1)]
+    assert len(observed) == 8
+    for seed in (0, 1):
+        cases = {
+            (length, k): data
+            for run_seed, length, k, data in observed
+            if run_seed == seed
+        }
+        assert set(cases) == {(40, 3), (40, 5), (80, 3), (80, 5)}
+        for k in (3, 5):
+            assert np.array_equal(cases[(40, k)], cases[(80, k)][:40])
+        assert np.array_equal(cases[(80, 3)], cases[(80, 5)])
+
+    with (output / "run_results.csv").open(newline="", encoding="utf-8") as file:
+        rows = list(csv.DictReader(file))
+    assert len(rows) == 8
+    assert all(int(row["cross_FN"]) == 1 for row in rows)
+    assert all(int(row["cross_TN"]) == 11 for row in rows)
